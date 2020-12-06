@@ -1,11 +1,11 @@
 # ESP32-CAM-Video-Recorder-junior
-Simple fast version of ESP32-CAM-Video-Recorder
+Простая быстрая версия кода для платы ESP32-CAM
 
 ESP32-CAM-Video-Recorder-junior
 
-  This program records an mjpeg avi video to the sd card of an ESP32-CAM.
+  Данная программа рекордер Motion-Jpeg видео на SD-Card для платы ESP32-CAM.
   
-  You can just compile, download, power-on ... and it will record a series of 30 minute, SVGA videos on your SD card ... while you read on ...
+  В программе реализован простой Web-интерфейс, потоковая передача MJPEG, запись на карту.
 
 ## Update Sep 28, 2020 - ESP32-CAM "GOPRO"
 v10 - fast and just one version
