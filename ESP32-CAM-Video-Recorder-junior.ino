@@ -1,57 +1,38 @@
 /*
- ESP32-CAM-Video-Recorder-junior
-  This program records an mjpeg avi video to the sd card of an ESP32-CAM.
-  It is the junior version of   https://github.com/jameszah/ESP32-CAM-Video-Recorder
-  which has 100 other features of wifi, streaming video, http control, telegram updates, pir control,
-  touch control, ftp downloads, .... and other things that make it very big and complex.
-  This one is written in simple arduino code without any semaphores, tasks, priorities, RTOS stuff ....
-  Just set a few parameters, compile and download, and it will record on power-on, until sd is full, or power-off.
-  Then pull out the sd and move it to your computer, and you will see all but the last file avi which died during the unplug.
-  Compile Time Parameters
-  1.  framesize 10,9,7,6,5 for 10 - UXGA (1600x1200 @ 6 fps),
-                                9 - SXGA (1280x1024 @ 6 fps),
-                                7 - SVGA(800x600 @ 24 fps),
-                                6 - VGA(640x480 @ 24 fps),
-                                5 - CIF(400x296 @ 50 fps)
-  2.  quality - 1 to 63 - 10 is a good start, increase to 20 to get more frames per second - must be higher than jpeg_quality below
-  3.  avi_length - seconds for each avi - it closes files, and starts another file after this time - like 60 or 1800
-  4.  devname - a text name for your camera when the files are on your computer
-  5. If you want internet, set #define IncludeInternet to 1, and put in your ssid and password
-  If you hold down gpio 12 - the files will be closed, and recording stopped.  Web interface still running.
-  If you hold down gpio 13 during a movie start - it will record at UXGA 6 fps, rather than SVGA 25 fps.
-  Note that framesize and high quality will produce lots of bytes which have to written to the sd.  Those frame rates above are
-  for the OV2640 camera, and your sd card will have to be able to swallow all that data before the next frame.  If the
-  sd card cannot take all that data, then the camera will be idle waiting for the sd.  Lower the framesize (UXGA -> SVGA),
-  and lower the quality (10 -> 15 -> 20, higher number is lower quality) to improve framerate to the camera limits.
-  If you have a fast enough sd card, it will record at the full speed of the camera.
-  You can look at the blinking red led on the back of the chip to see the recording rate -- sd chips for video are made to be more predictable.
-  The files will have the name such as:
-    desklens10.003.avi
-    "desklens" is your devname
-    10 - is a number stored in eprom that will increase everytime your device boots
-    3 - is the 3rd file created during the current boot
-  Small red led on the back blinks with every frame.
-  by James Zahary Sep 12, 2020
-     jamzah.plc@gmail.com
-  - v09 Sep 24, 2020
-  - v10 Sep 28, 2020
-  https://github.com/jameszah/ESP32-CAM-Video-Recorder-junior
-  https://github.com/jameszah/ESP32-CAM-Video-Recorder
-    jameszah/ESP32-CAM-Video-Recorder is licensed under the
-    GNU General Public License v3.0
-    jameszah/ESP32-CAM-Video-Recorder-junior is licensed under the
-    GNU General Public License v3.0
-  The is Arduino code, with standard setup for ESP32-CAM
-    - Board ESP32 Wrover Module
-    - Partition Scheme Huge APP (3MB No OTA)
-  Compiled with Arduino 1.8.12, which used these libraries:
-  Using library SD_MMC at version 1.0 in folder: C:\Users\James\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\libraries\SD_MMC
-  Using library FS at version 1.0 in folder: C:\Users\James\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\libraries\FS
-  Using library EEPROM at version 1.0.3 in folder: C:\Users\James\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\libraries\EEPROM
-  Using library WiFi at version 1.0 in folder: C:\Users\James\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\libraries\WiFi
-  Using library ESPmDNS at version 1.0 in folder: C:\Users\James\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\libraries\ESPmDNS
-  Using library HTTPClient at version 1.2 in folder: C:\Users\James\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\libraries\HTTPClient
-  Using library WiFiClientSecure at version 1.0 in folder: C:\Users\James\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\libraries\WiFiClientSecure
+ Проект видео/ловушка на базе платы AI-Thinker ESP32-CAM с видео-чипом OV2640, с трансляцией видео/потока(MJPEG по HTTP) по Wi-Fi.
+ Версия 11.0 с доплеровским датчиком движения на модуле RCWL-0516 (аналог HW-MS03).
+
+ Данный код разработан для ID Arduino ver. 1.8.10(и выше), платформа(менеджер плат) ESP32 ver. 1.0.4, необходимые установки для ESP32-CAM:
+    - Плата: "ESP32 Wrover Module"
+    - Схема разделов: "Huge APP (3MB No OTA)"
+
+ Пины: 
+ GPIO12 - сигнальный для датчика движения: "Высокий уровень" - движение, "Низкий уровень" - нет движения. Подробности см. в "Схеме проекта".
+
+  Ссылки на источники:
+    - Постоянный репозиторий проекта:
+      https://github.com/AEmelyanov757/ESP32-CAM-Video-Recorder-junior.git
+    - Мануалы разработчиков чипа, платы, платформы:
+      https://docs.espressif.com/projects/esp-idf/en/latest/index.html - интерактивный справочник по ESP32 от компании Espressif.
+      https://wiki.ai-thinker.com/esp32-cam - интерактивный справочник по ESP32-CAM от компании AI-Thinker (китайский язык).
+      https://www.arduino.cc/reference/en/ - интерактивный справочник по Arduino от Arduino AG.
+    - Cерия статей от Руи Сантос (Rui Santos) и компании студентов про основы программирования ESP32-CAM в среде Arduino:
+      https://randomnerdtutorials.com/esp8266-pinout-reference-gpios/ - про порты вводы/вывода.
+      https://randomnerdtutorials.com/esp32-touch-pins-arduino-ide/ - про особенность сенсорных кнопок ESP32.
+      https://makeradvisor.com/esp32-cam-ov2640-camera/ - вводная статья о ESP32-CAM.
+      https://randomnerdtutorials.com/esp32-cam-video-streaming-web-server-camera-home-assistant/ - организация Wi-Fi видое стриминга.
+      https://randomnerdtutorials.com/esp32-cam-video-streaming-face-recognition-arduino-ide/ - стриминг и распознование лиц.
+      https://randomnerdtutorials.com/esp32-cam-take-photo-save-microsd-card/ - сохранение фото на SD-карты, преодоление проблемы "4 Гбайт".
+    - Полезные репозитории кода на GitHub по ESP32-CAM:
+      https://github.com/espressif/esp32-camera - репозиторий от Espressif.
+      https://github.com/donny681/ESP32_CAMERA_QR - репозиторий кода распознования QR-кода (можно организовать чтение имени и пароля Wi-Fi "на лету").
+      https://github.com/raphaelbs/esp32-cam-ai-thinker - репозиторий кода Wi-Fi стрим камеры.
+      https://github.com/ArduCAM/ArduCAM_ESP32S_UNO - бибилиотека Arduino Camera, адаптированный для ESP32. Есть пример кода записи видео (320x240) на SD-карту.
+      https://github.com/dproldan/Esp32AutoCamera - репозиторий кода Wi-Fi стрим камеры.
+      https://github.com/tsaarni/esp32-micropython-webcam - репозиторий кода Wi-Fi стрим камеры на MicroPython (первый шаг в сторону OpenMV).
+      https://github.com/openmv/openmv - репозиторий кода библиотеки машинного зрения OpenMV. Требуется произвести адаптацию быстрых математически функций. 
+      https://github.com/jameszah/ESP32-CAM-Video-Recorder.git
+      https://github.com/jameszah/ESP32-CAM-Video-Recorder-junior.git
 */
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -68,25 +49,19 @@ const char* password = "PASS";
 // https://sites.google.com/a/usapiens.com/opnode/time-zones  -- find your timezone here
 #define TIMEZONE "UTC-12:00" // Временная зона Asia/Kamchatka
 
-// two configurations
-// c1 is config if you have nothing on pin 13
-// c2 will be used if you ground pin 13, through a 10k resistor
-// c1 = svga, quality 10, 3 minutes
-// c2 = uxga, quality 10, 3 minutes
-
-int c1_framesize = 7;                //  10 UXGA, 9 SXGA, 7 SVGA, 6 VGA, 5 CIF
-int c1_quality = 10;                 //  quality on the 1..63 scale  - lower is better quality and bigger files - must be higher than the jpeg_quality in camera_config
+// two configurations :
+int c1_framesize = 7;                // SVGA
+int c1_quality = 10;                 // quality on the 1..63 scale  - lower is better quality and bigger files - must be higher than the jpeg_quality in camera_config
 int c1_avi_length = 180;             // how long a movie in seconds -- 180 sec = 3 min
 
-int c2_framesize = 5;
-int c2_quality = 1;
-int c2_avi_length = 180;
+int c2_framesize = 5;                // CIF
+int c2_quality = 1;                  // quality on the 1..63 scale  - lower is better quality and bigger files - must be higher than the jpeg_quality in camera_config
+int c2_avi_length = 180;             // how long a movie in seconds -- 180 sec = 3 min
 
 int c1_or_c2 = 1;
 int framesize = c1_framesize;
 int quality = c1_quality;
 int avi_length = c1_avi_length;
-
 
 int MagicNumber = 100;                // change this number to reset the eprom in your esp32 for file numbers
 
@@ -568,28 +543,6 @@ void do_eprom_write() {
 //   end_avi() - write the final parameters and close the file
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//   Функция создания папки
-//   Это вспомогательная функция
-void createDir(const char* path){
-  f_mkdir(path);
-}
-//    if(mkdir(path,0777)){
-//        Serial.print("Dir created: ");
-//        Serial.println(path);
-//    } else {
-//        Serial.println("mkdir failed");
-//    }
-//}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//   Функция проверяет наличие папки, и создает при отсутсвии
-//   Это вспомогательная функция
-//void TestDir(const char* path){
-//  //if(!find(path)) createDir(path);
-//  createDir(path);
-//}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
 // start_avi - open the files and write in headers
 //
@@ -602,17 +555,8 @@ static esp_err_t start_avi() {
   localtime_r(&now, &timeinfo);
 
   strftime(strftime_buf, sizeof(strftime_buf), "%Y_%m_%d__%H-%M-%S", &timeinfo);
-  //strftime(strftime_buf, sizeof(strftime_buf), "%Y_%m_%d", &timeinfo);
-  //sprintf(pname, "/sdcard/%s", strftime_buf);
-  //Serial.print("Create path: ");Serial.println(pname);
-  
-  //TestDir(pname);
-  //createDir(pname);
-
-  //strftime(strftime_buf, sizeof(strftime_buf), "%H-%M-%S", &timeinfo);
-  //sprintf(fname, "%s/%s.avi",  pname, strftime_buf);
   sprintf(fname, "/sdcard/%s.avi", strftime_buf);
-  Serial.print("Create file: ");Serial.println(fname);
+  //Serial.print("Create file: ");Serial.println(fname);
   file_number++;
 
   avifile = fopen(fname, "w");
