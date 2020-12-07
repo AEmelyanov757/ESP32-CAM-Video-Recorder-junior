@@ -65,9 +65,6 @@ int avi_length = c1_avi_length;
 
 int MagicNumber = 100;                // change this number to reset the eprom in your esp32 for file numbers
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 float most_recent_fps = 0;
 int most_recent_avg_framesize = 0;
 
@@ -133,8 +130,6 @@ int done = 0;
 long avi_start_time = 0;
 long avi_end_time = 0;
 int moveStop = 0;
-//int stop_2nd_opinion = -2;
-//int stop_1st_opinion = -1;
 
 int we_are_already_stopped = 0;
 long total_delay = 0;
@@ -146,7 +141,9 @@ long time_before_last_100_frames = 0;
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // MicroSD
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #include "driver/sdmmc_host.h"
 #include "driver/sdmmc_defs.h"
 #include "sdmmc_cmd.h"
@@ -219,7 +216,6 @@ uint8_t sxga_h[2] = {0x00, 0x04}; // 1024
 uint8_t uxga_w[2] = {0x40, 0x06}; // 1600
 uint8_t uxga_h[2] = {0xB0, 0x04}; // 1200
 
-
 const int avi_header[AVIOFFSET] PROGMEM = {
   0x52, 0x49, 0x46, 0x46, 0xD8, 0x01, 0x0E, 0x00, 0x41, 0x56, 0x49, 0x20, 0x4C, 0x49, 0x53, 0x54,
   0xD0, 0x00, 0x00, 0x00, 0x68, 0x64, 0x72, 0x6C, 0x61, 0x76, 0x69, 0x68, 0x38, 0x00, 0x00, 0x00,
@@ -245,9 +241,9 @@ const int avi_header[AVIOFFSET] PROGMEM = {
 time_t now;
 struct tm timeinfo;
 
-//
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Writes an uint32_t in Big Endian at current file position
-//
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 static void inline print_quartet(unsigned long i, FILE * fd)
 {
   uint8_t y[4];
@@ -258,9 +254,9 @@ static void inline print_quartet(unsigned long i, FILE * fd)
   size_t i1_err = fwrite(y , 1, 4, fd);
 }
 
-//
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Writes 2 uint32_t in Big Endian at current file position
-//
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 static void inline print_2quartet(unsigned long i, unsigned long j, FILE * fd)
 {
   uint8_t y[8];
@@ -275,11 +271,10 @@ static void inline print_2quartet(unsigned long i, unsigned long j, FILE * fd)
   size_t i1_err = fwrite(y , 1, 8, fd);
 }
 
-//
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // if we have no camera, or sd card, then flash rear led on and off to warn the human SOS - SOS
-//
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 void major_fail() {
-
   Serial.println(" ");
 
   for  (int i = 0;  i < 10; i++) {                 // 10 loops or about 100 seconds then reboot
@@ -300,11 +295,11 @@ void major_fail() {
   ESP.restart();
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 static esp_err_t config_camera() {
-
   camera_config_t config;
-
-  //Serial.println("config camera");
 
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -351,9 +346,6 @@ static esp_err_t config_camera() {
   config.jpeg_quality = 6;  // 1 to 63 - smaller number is higher quality and more data - must be lower rhat the quality parameter at the top
   config.fb_count = 7;
 
-  //Serial.printf("Before camera config ...");
-  //Serial.printf("Internal Total heap %d, internal Free Heap %d\n\n", ESP.getHeapSize(), ESP.getFreeHeap());
-
   esp_err_t cam_err = ESP_FAIL;
   int attempt = 2;
   while (attempt && cam_err != ESP_OK) {
@@ -371,13 +363,7 @@ static esp_err_t config_camera() {
     major_fail();
   }
 
-  //Serial.printf("After camera config ...");
-  //Serial.printf("Internal Total heap %d, internal Free Heap %d\n\n", ESP.getHeapSize(), ESP.getFreeHeap());
-
   sensor_t * ss = esp_camera_sensor_get();
-
-  ///ss->set_vflip(ss, 1);          // 0 = disable , 1 = enable
-  ///ss->set_hmirror(ss, 0);        // 0 = disable , 1 = enable
 
   Serial.printf("\nCamera started correctly, Type is %x (hex) of 9650, 7725, 2640, 3660, 5640\n\n", ss->id.PID);
 
@@ -390,7 +376,6 @@ static esp_err_t config_camera() {
   delay(800);
   for (int j = 0; j < 4; j++) {
     camera_fb_t * fb = esp_camera_fb_get();
-    //Serial.print("Pic, len="); Serial.println(fb->len);
     esp_camera_fb_return(fb);
     delay(50);
   }
@@ -398,8 +383,7 @@ static esp_err_t config_camera() {
 
 static esp_err_t init_sdcard()
 {
-
-  pinMode(13, PULLUP);
+  //pinMode(13, PULLUP);
 
   esp_err_t ret = ESP_FAIL;
   sdmmc_host_t host = SDMMC_HOST_DEFAULT();
@@ -429,13 +413,10 @@ static esp_err_t init_sdcard()
   sdmmc_card_print_info(stdout, card);
 }
 
-
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//
 //  get_good_jpeg()  - take a picture and make sure it has a good jpeg
-//
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 camera_fb_t *  get_good_jpeg() {
-
   camera_fb_t * fb;
 
   do {
@@ -450,8 +431,6 @@ camera_fb_t *  get_good_jpeg() {
       if (fb->buf[x - j] != 0xD9) {
         // no d9, try next for
       } else {
-
-        //Serial.println("Found a D9");
         if (fb->buf[x - j - 1] == 0xFF ) {
           //Serial.print("Found the FFD9, junk is "); Serial.println(j);
           if (j == 1) {
@@ -475,7 +454,6 @@ camera_fb_t *  get_good_jpeg() {
       bad_jpg++;
       Serial.print("Bad jpeg, Len = "); Serial.println(x);
       esp_camera_fb_return(fb);
-
     } else {
       break;
       // count up the useless bytes
@@ -484,14 +462,11 @@ camera_fb_t *  get_good_jpeg() {
   } while (1);
 
   return fb;
-
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//
 //  eprom functions  - increment the file_group, so files are always unique
-//
-
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #include <EEPROM.h>
 
 struct eprom_data {
@@ -499,6 +474,9 @@ struct eprom_data {
   int file_group;
 };
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 void do_eprom_read() {
 
   eprom_data ed;
@@ -519,8 +497,10 @@ void do_eprom_read() {
   file_number = 1;
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 void do_eprom_write() {
-
   eprom_data ed;
 
   ed.eprom_good = MagicNumber;
@@ -535,20 +515,17 @@ void do_eprom_write() {
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//
 // Make the avi functions
 //
 //   start_avi() - open the file and write headers
 //   another_pic_avi() - write one more frame of movie
 //   end_avi() - write the final parameters and close the file
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//
 // start_avi - open the files and write in headers
-//
-
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 static esp_err_t start_avi() {
-
   Serial.println("Starting an avi ");
 
   time(&now);
@@ -556,7 +533,7 @@ static esp_err_t start_avi() {
 
   strftime(strftime_buf, sizeof(strftime_buf), "%Y_%m_%d__%H-%M-%S", &timeinfo);
   sprintf(fname, "/sdcard/%s.avi", strftime_buf);
-  //Serial.print("Create file: ");Serial.println(fname);
+
   file_number++;
 
   avifile = fopen(fname, "w");
@@ -585,7 +562,6 @@ static esp_err_t start_avi() {
   size_t err = fwrite(buf, 1, AVIOFFSET, avifile);
 
   if (framesize == 6) {
-
     fseek(avifile, 0x40, SEEK_SET);
     err = fwrite(vga_w, 1, 2, avifile);
     fseek(avifile, 0xA8, SEEK_SET);
@@ -594,9 +570,7 @@ static esp_err_t start_avi() {
     err = fwrite(vga_h, 1, 2, avifile);
     fseek(avifile, 0xAC, SEEK_SET);
     err = fwrite(vga_h, 1, 2, avifile);
-
   } else if (framesize == 10) {
-
     fseek(avifile, 0x40, SEEK_SET);
     err = fwrite(uxga_w, 1, 2, avifile);
     fseek(avifile, 0xA8, SEEK_SET);
@@ -605,9 +579,7 @@ static esp_err_t start_avi() {
     err = fwrite(uxga_h, 1, 2, avifile);
     fseek(avifile, 0xAC, SEEK_SET);
     err = fwrite(uxga_h, 1, 2, avifile);
-
   } else if (framesize == 9) {
-
     fseek(avifile, 0x40, SEEK_SET);
     err = fwrite(sxga_w, 1, 2, avifile);
     fseek(avifile, 0xA8, SEEK_SET);
@@ -616,9 +588,7 @@ static esp_err_t start_avi() {
     err = fwrite(sxga_h, 1, 2, avifile);
     fseek(avifile, 0xAC, SEEK_SET);
     err = fwrite(sxga_h, 1, 2, avifile);
-
   } else if (framesize == 7) {
-
     fseek(avifile, 0x40, SEEK_SET);
     err = fwrite(svga_w, 1, 2, avifile);
     fseek(avifile, 0xA8, SEEK_SET);
@@ -629,7 +599,6 @@ static esp_err_t start_avi() {
     err = fwrite(svga_h, 1, 2, avifile);
 
   }  else if (framesize == 5) {
-
     fseek(avifile, 0x40, SEEK_SET);
     err = fwrite(cif_w, 1, 2, avifile);
     fseek(avifile, 0xA8, SEEK_SET);
@@ -639,7 +608,6 @@ static esp_err_t start_avi() {
     fseek(avifile, 0xAC, SEEK_SET);
     err = fwrite(cif_h, 1, 2, avifile);
   }
-
   fseek(avifile, AVIOFFSET, SEEK_SET);
 
   Serial.print(F("\nRecording "));
@@ -665,13 +633,10 @@ static esp_err_t start_avi() {
 } // end of start avi
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//
 //  another_save_avi saves another frame to the avi file, uodates index
 //           -- pass in a fb pointer to the frame to add
-//
-
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 static esp_err_t another_save_avi(camera_fb_t * fb ) {
-
   int fblen;
   fblen = fb->len;
 
@@ -698,7 +663,6 @@ static esp_err_t another_save_avi(camera_fb_t * fb ) {
   framebuffer_static[5] = (jpeg_size_rem >> 8) % 0x100;
   framebuffer_static[6] = (jpeg_size_rem >> 16) % 0x100;
   framebuffer_static[7] = (jpeg_size_rem >> 24) % 0x100;
-
   fb_block_start = fb->buf;
 
   if (fblen > 64 * 1024 - 8 ) {
@@ -720,7 +684,6 @@ static esp_err_t another_save_avi(camera_fb_t * fb ) {
   }
 
   while (fblen > 0) {
-
     if (fblen > 64 * 1024) {
       fb_block_length = 64 * 1024;
       fblen = fblen - fb_block_length;
@@ -739,32 +702,22 @@ static esp_err_t another_save_avi(camera_fb_t * fb ) {
 
     fb_block_start = fb_block_start + fb_block_length;
   }
-
   long frame_write_end = millis();
 
   print_2quartet(idx_offset, jpeg_size, idxfile);
-
   idx_offset = idx_offset + jpeg_size + remnant + 8;
-
   movi_size = movi_size + remnant;
-
   totalw = totalw + millis() - bw;
-
 } // end of another_pic_avi
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//
 //  end_avi writes the index, and closes the files
-//
-
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 static esp_err_t end_avi() {
-
   unsigned long current_end = 0;
 
   current_end = ftell (avifile);
-
   Serial.println("End of avi - closing the files");
-
 
   if (frame_cnt <  10 ) {
     Serial.println("Recording screwed up, less than 10 frames, forget index\n");
@@ -773,7 +726,6 @@ static esp_err_t end_avi() {
     int xx = remove("/sdcard/idx.tmp");
     int yy = remove(fname);
   } else {
-
     elapsedms = millis() - startms;
 
     float fRealFPS = (1000.0f * (float)frame_cnt) / ((float)elapsedms);
@@ -862,16 +814,19 @@ static esp_err_t end_avi() {
     int xx = remove("/sdcard/idx.tmp");
   }
   Serial.println("---");
-
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #include <WiFi.h>
 #include <ESPmDNS.h>
 
 char localip[20];
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 bool init_wifi()
 {
   int connAttempts = 0;
@@ -879,11 +834,9 @@ bool init_wifi()
   uint32_t brown_reg_temp = READ_PERI_REG(RTC_CNTL_BROWN_OUT_REG);
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
-
   WiFi.disconnect(true, true);
   WiFi.mode(WIFI_STA);
   WiFi.setHostname(devname);
-
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED ) {
@@ -921,176 +874,204 @@ bool init_wifi()
 
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, brown_reg_temp);
   return true;
-
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-//
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #include <HTTPClient.h>
+#include "camera_index.h"
 
+typedef struct {
+        size_t size; //number of values used for filtering
+        size_t index; //current value index
+        size_t count; //value count
+        int sum;
+        int * values; //array to be filled with values
+} ra_filter_t;
+
+static ra_filter_t ra_filter;
 httpd_handle_t camera_httpd = NULL;
+httpd_handle_t stream_httpd = NULL;
+
 char the_page[4000];
 
-static esp_err_t capture_handler(httpd_req_t *req) {
-
-  camera_fb_t * fb = NULL;
-  esp_err_t res = ESP_OK;
-  char fname[100];
-  int file_number = 0;
-
-  //Serial.print("capture, core ");  Serial.print(xPortGetCoreID());
-  //Serial.print(", priority = "); Serial.println(uxTaskPriorityGet(NULL));
-
-  file_number++;
-
-  sprintf(fname, "inline; filename=capture_%d.jpg", file_number);
-
-  if (fb_next == NULL) {
-    fb = esp_camera_fb_get();
-    framebuffer_len = fb->len;
-    memcpy(framebuffer, fb->buf, framebuffer_len);
-    esp_camera_fb_return(fb);
-  } else {
-    fb = fb_next;
-    framebuffer_len = fb->len;
-    memcpy(framebuffer, fb->buf, framebuffer_len);
-  }
-
-  httpd_resp_set_type(req, "image/jpeg");
-  httpd_resp_set_hdr(req, "Content-Disposition", fname);
-
-  res = httpd_resp_send(req, (const char *)framebuffer, framebuffer_len);
-
-  return res;
-}
-
-
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-//
-static esp_err_t index_handler(httpd_req_t *req) {
-
-
-  Serial.print("http index, core ");  Serial.print(xPortGetCoreID());
-  Serial.print(", priority = "); Serial.println(uxTaskPriorityGet(NULL));
-
-  const char the_message[] = "Status";
-
-  time(&now);
-  const char *strdate = ctime(&now);
-
-  int tot = SD_MMC.totalBytes() / (1024 * 1024);
-  int use = SD_MMC.usedBytes() / (1024 * 1024);
-  long rssi = WiFi.RSSI();
-
-  const char msg[] PROGMEM = R"rawliteral(<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>%s ESP32-CAM Video Recorder</title>
-</head>
-<body>
-<h1>%s<br>ESP32-CAM Video Recorder %s <br><font color="red">%s</font></h1><br>
- Used / Total SD Space <font color="red"> %d MB / %d MB</font><br>
- Rssi %d<br>
- Filename: %s <br>
- Framesize %d, Quality %d <br>
- Avg framesize %d, fps %.1f <br>
- Time left in current video %d seconds<br>
- <br>
- <h3><a href="http://%s/">http://%s/</a></h3>
- <h3><a href="http://%s/stream">Stream at 5 fps </a></h3>
- <h3><a href="http://%s/photos">Photos - 15 saveable photos @ every 2 seconds </a></h3>
-</body>
-</html>)rawliteral";
-
-
-  int time_left = (- millis() +  (avi_start_time + avi_length * 1000)) / 1000;
-
-  if (moveStop == 0) {
-    time_left = 0;
-  }
-
-
-  sprintf(the_page, msg, devname, devname, vernum, strdate, use, tot, rssi, fname,
-          framesize, quality, most_recent_avg_framesize, most_recent_fps, time_left,
-          localip, localip, localip, localip);
-
-
-  httpd_resp_send(req, the_page, strlen(the_page));
-  return ESP_OK;
-}
-
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//
-//
-static esp_err_t photos_handler(httpd_req_t *req) {
+static ra_filter_t * ra_filter_init(ra_filter_t * filter, size_t sample_size){
+    memset(filter, 0, sizeof(ra_filter_t));
 
-  Serial.print("http photos, core ");  Serial.print(xPortGetCoreID());
-  Serial.print(", priority = "); Serial.println(uxTaskPriorityGet(NULL));
-
-  const char the_message[] = "Status";
-
-  time(&now);
-  const char *strdate = ctime(&now);
-
-  const char msg[] PROGMEM = R"rawliteral(<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>%s ESP32-CAM Video Recorder</title>
-</head>
-<body>
-<h1>%s<br>ESP32-CAM Video Recorder %s <br><font color="red">%s</font></h1><br>
- <br>
- One photo every 2 seconds for 30 seconds - roll forward or back - refresh for more live photos
- <br>
-<br><div id="image-container"></div>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  var c = document.location.origin;
-  const ic = document.getElementById('image-container');  
-  var i = 1;
-  
-  var timing = 2000; // time between snapshots for multiple shots
-  function loop() {
-    ic.insertAdjacentHTML('beforeend','<img src="'+`${c}/capture?_cb=${Date.now()}`+'">')
-    ic.insertAdjacentHTML('beforeend','<br>')
-    ic.insertAdjacentHTML('beforeend',Date())
-    ic.insertAdjacentHTML('beforeend','<br>')
-    i = i + 1;
-    if ( i <= 15 ) {             // 1 frame every 2 seconds for 15 seconds 
-      window.setTimeout(loop, timing);
+    filter->values = (int *)malloc(sample_size * sizeof(int));
+    if(!filter->values){
+        return NULL;
     }
-  }
-  loop();
-  
-})
-</script><br>
-</body>
-</html>)rawliteral";
+    memset(filter->values, 0, sample_size * sizeof(int));
 
-  sprintf(the_page, msg, devname, devname, vernum, strdate );
-
-  httpd_resp_send(req, the_page, strlen(the_page));
-  return ESP_OK;
+    filter->size = sample_size;
+    return filter;
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-//  Streaming stuff based on Random Nerd
-//
-//
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+static int ra_filter_run(ra_filter_t * filter, int value){
+    if(!filter->values){
+        return value;
+    }
+    filter->sum -= filter->values[filter->index];
+    filter->values[filter->index] = value;
+    filter->sum += filter->values[filter->index];
+    filter->index++;
+    filter->index = filter->index % filter->size;
+    if (filter->count < filter->size) {
+        filter->count++;
+    }
+    return filter->sum / filter->count;
+}
 
+// Cтраница изменения параметров работы видео сенсора
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+static esp_err_t cmd_handler(httpd_req_t *req){
+    char*  buf;
+    size_t buf_len;
+    char variable[32] = {0,};
+    char value[32] = {0,};
+
+    buf_len = httpd_req_get_url_query_len(req) + 1;
+    if (buf_len > 1) {
+        buf = (char*)malloc(buf_len);
+        if(!buf){
+            httpd_resp_send_500(req);
+            return ESP_FAIL;
+        }
+        if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+            if (httpd_query_key_value(buf, "var", variable, sizeof(variable)) == ESP_OK &&
+                httpd_query_key_value(buf, "val", value, sizeof(value)) == ESP_OK) {
+            } else {
+                free(buf);
+                httpd_resp_send_404(req);
+                return ESP_FAIL;
+            }
+        } else {
+            free(buf);
+            httpd_resp_send_404(req);
+            return ESP_FAIL;
+        }
+        free(buf);
+    } else {
+        httpd_resp_send_404(req);
+        return ESP_FAIL;
+    }
+
+    int val = atoi(value);
+    sensor_t * s = esp_camera_sensor_get();
+    int res = 0;
+
+    if(!strcmp(variable, "framesize")) {
+      if(val == 7){
+        c1_or_c2 = 1;
+      } else c1_or_c2 = 2;
+    }
+    else if(!strcmp(variable, "contrast")) res = s->set_contrast(s, val);
+    else if(!strcmp(variable, "brightness")) res = s->set_brightness(s, val);
+    else if(!strcmp(variable, "saturation")) res = s->set_saturation(s, val);
+    else if(!strcmp(variable, "gainceiling")) res = s->set_gainceiling(s, (gainceiling_t)val);
+    else if(!strcmp(variable, "colorbar")) res = s->set_colorbar(s, val);
+    else if(!strcmp(variable, "awb")) res = s->set_whitebal(s, val);
+    else if(!strcmp(variable, "agc")) res = s->set_gain_ctrl(s, val);
+    else if(!strcmp(variable, "aec")) res = s->set_exposure_ctrl(s, val);
+    else if(!strcmp(variable, "hmirror")) res = s->set_hmirror(s, val);
+    else if(!strcmp(variable, "vflip")) res = s->set_vflip(s, val);
+    else if(!strcmp(variable, "awb_gain")) res = s->set_awb_gain(s, val);
+    else if(!strcmp(variable, "agc_gain")) res = s->set_agc_gain(s, val);
+    else if(!strcmp(variable, "aec_value")) res = s->set_aec_value(s, val);
+    else if(!strcmp(variable, "aec2")) res = s->set_aec2(s, val);
+    else if(!strcmp(variable, "dcw")) res = s->set_dcw(s, val);
+    else if(!strcmp(variable, "bpc")) res = s->set_bpc(s, val);
+    else if(!strcmp(variable, "wpc")) res = s->set_wpc(s, val);
+    else if(!strcmp(variable, "raw_gma")) res = s->set_raw_gma(s, val);
+    else if(!strcmp(variable, "lenc")) res = s->set_lenc(s, val);
+    else if(!strcmp(variable, "special_effect")) res = s->set_special_effect(s, val);
+    else if(!strcmp(variable, "wb_mode")) res = s->set_wb_mode(s, val);
+    else if(!strcmp(variable, "ae_level")) res = s->set_ae_level(s, val);
+    else {
+        res = -1;
+    }
+
+    if(res){
+        return httpd_resp_send_500(req);
+    }
+
+    delay(800);
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    return httpd_resp_send(req, NULL, 0);
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Cтраница получения параметров работы видео сенсора
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+static esp_err_t status_handler(httpd_req_t *req){
+    static char json_response[1024];
+
+    sensor_t * s = esp_camera_sensor_get();
+    char * p = json_response;
+
+    *p++ = '{';
+    p+=sprintf(p, "\"framesize\":%u,", s->status.framesize);
+    p+=sprintf(p, "\"brightness\":%d,", s->status.brightness);
+    p+=sprintf(p, "\"contrast\":%d,", s->status.contrast);
+    p+=sprintf(p, "\"saturation\":%d,", s->status.saturation);
+    p+=sprintf(p, "\"sharpness\":%d,", s->status.sharpness);
+    p+=sprintf(p, "\"special_effect\":%u,", s->status.special_effect);
+    p+=sprintf(p, "\"wb_mode\":%u,", s->status.wb_mode);
+    p+=sprintf(p, "\"awb\":%u,", s->status.awb);
+    p+=sprintf(p, "\"awb_gain\":%u,", s->status.awb_gain);
+    p+=sprintf(p, "\"aec\":%u,", s->status.aec);
+    p+=sprintf(p, "\"aec2\":%u,", s->status.aec2);
+    p+=sprintf(p, "\"ae_level\":%d,", s->status.ae_level);
+    p+=sprintf(p, "\"aec_value\":%u,", s->status.aec_value);
+    p+=sprintf(p, "\"agc\":%u,", s->status.agc);
+    p+=sprintf(p, "\"agc_gain\":%u,", s->status.agc_gain);
+    p+=sprintf(p, "\"gainceiling\":%u,", s->status.gainceiling);
+    p+=sprintf(p, "\"bpc\":%u,", s->status.bpc);
+    p+=sprintf(p, "\"wpc\":%u,", s->status.wpc);
+    p+=sprintf(p, "\"raw_gma\":%u,", s->status.raw_gma);
+    p+=sprintf(p, "\"lenc\":%u,", s->status.lenc);
+    p+=sprintf(p, "\"vflip\":%u,", s->status.vflip);
+    p+=sprintf(p, "\"hmirror\":%u,", s->status.hmirror);
+    p+=sprintf(p, "\"dcw\":%u,", s->status.dcw);
+    p+=sprintf(p, "\"colorbar\":%u,", s->status.colorbar);
+    *p++ = '}';
+    *p++ = 0;
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    return httpd_resp_send(req, json_response, strlen(json_response));
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Главная страница
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+static esp_err_t index_handler(httpd_req_t *req){
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
+    sensor_t * s = esp_camera_sensor_get();
+    return httpd_resp_send(req, (const char *)index_ov2640_html_gz, index_ov2640_html_gz_len);
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Streaming stuff based on Random Nerd
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #define PART_BOUNDARY "123456789000000000000987654321"
 
 static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
 static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Страница видео/потока, MJPEG по HTTP
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 static esp_err_t stream_handler(httpd_req_t *req) {
   camera_fb_t * fb = NULL;
   esp_err_t res = ESP_OK;
@@ -1148,6 +1129,9 @@ static esp_err_t stream_handler(httpd_req_t *req) {
   return res;
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Инициализация Web-сервера
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 void startCameraServer() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 
@@ -1159,12 +1143,21 @@ void startCameraServer() {
     .handler   = index_handler,
     .user_ctx  = NULL
   };
-  httpd_uri_t capture_uri = {
-    .uri       = "/capture",
+
+  httpd_uri_t status_uri = {
+    .uri       = "/status",
     .method    = HTTP_GET,
-    .handler   = capture_handler,
+    .handler   = status_handler,
     .user_ctx  = NULL
   };
+
+  httpd_uri_t cmd_uri = {
+    .uri       = "/control",
+    .method    = HTTP_GET,
+    .handler   = cmd_handler,
+    .user_ctx  = NULL
+  };
+
   httpd_uri_t stream_uri = {
     .uri       = "/stream",
     .method    = HTTP_GET,
@@ -1172,25 +1165,28 @@ void startCameraServer() {
     .user_ctx  = NULL
   };
 
-  httpd_uri_t photos_uri = {
-    .uri       = "/photos",
-    .method    = HTTP_GET,
-    .handler   = photos_handler,
-    .user_ctx  = NULL
-  };
+  ra_filter_init(&ra_filter, 20);
+
+  config.task_priority = 0; //минимальный приоритет выполнения!
   if (httpd_start(&camera_httpd, &config) == ESP_OK) {
     httpd_register_uri_handler(camera_httpd, &index_uri);
-    httpd_register_uri_handler(camera_httpd, &capture_uri);
-    httpd_register_uri_handler(camera_httpd, &stream_uri);
-    httpd_register_uri_handler(camera_httpd, &photos_uri);
+    httpd_register_uri_handler(camera_httpd, &cmd_uri);
+    httpd_register_uri_handler(camera_httpd, &status_uri);
   }
 
+  config.task_priority = 3; //максимальный приоритет выполнения только для потока видео!
+  config.server_port += 1;
+  config.ctrl_port += 1;
+  if(httpd_start(&stream_httpd, &config) == ESP_OK) {
+    httpd_register_uri_handler(stream_httpd, &stream_uri);
+  }
+  
   Serial.println("Camera http started");
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Функция настройки модуля
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 void setup() {
   Serial.begin(115200);
   Serial.println("\n\n---");
@@ -1201,11 +1197,7 @@ void setup() {
   pinMode(4, OUTPUT);               // Blinding Disk-Avtive Light
   digitalWrite(4, LOW);             // turn off
 
-  //pinMode(12, INPUT_PULLUP);        // pull this down to stop recording
   pinMode(12, INPUT_PULLDOWN);               // pull this down to stop recording
-  pinMode(13, INPUT_PULLUP);        // pull this down switch to UXGA
-
-  //Serial.setDebugOutput(true);
 
   Serial.println("                                    ");
   Serial.println("-------------------------------------");
@@ -1215,21 +1207,13 @@ void setup() {
   Serial.print("setup, core ");  Serial.print(xPortGetCoreID());
   Serial.print(", priority = "); Serial.println(uxTaskPriorityGet(NULL));
 
-  //Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
-  //Serial.printf("SPIRam Total heap   %d, SPIRam Free Heap   %d\n", ESP.getPsramSize(), ESP.getFreePsram());
-
-
   if (IncludeInternet) {
     Serial.println("Starting the wifi ...");
     init_wifi();
   }
 
   Serial.println("Setting up the camera ...");
-
   config_camera();
-
-  //Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
-  //Serial.printf("SPIRam Total heap   %d, SPIRam Free Heap   %d\n", ESP.getPsramSize(), ESP.getFreePsram());
 
   // SD camera init
   esp_err_t card_err = init_sdcard();
@@ -1239,11 +1223,7 @@ void setup() {
     return;
   }
 
-  //Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
-  //Serial.printf("SPIRam Total heap   %d, SPIRam Free Heap   %d\n", ESP.getPsramSize(), ESP.getFreePsram());
-
   digitalWrite(33, HIGH);         // red light turns off when setup is complete
-
   Serial.println("Warming up the camera ... here are some frames sizes ...");
 
   for (int i = 0; i < 10; i++) {
@@ -1261,13 +1241,9 @@ void setup() {
   }
 
   framebuffer = (uint8_t*)ps_malloc(512 * 1024); // buffer to store a jpg in motion
-
   Serial.println("  End of setup()\n\n");
-
   boot_time = millis();
 }
-
-
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // loop() - остатки Ардуино... главная задача
@@ -1285,20 +1261,20 @@ void loop() {
 
   // счетчики кадров: 
   frame_cnt = frame_cnt + 1; // длина всей записи
-  frame_mov = frame_mov + 1; // отсчитывание "1 минуты" записи
+  frame_mov = frame_mov + 1; // отсчитывание "0.5 минуты" записи
   
   // быстрый способ обнаружить движение/"окончание движения"
-  if(frame_mov > 1440){
+  if(frame_mov > 720){
     frame_mov = 0;
     moveStop = 0;
 
-    for(int i = 0; i < 2; i++){
+    for(int i = 0; i < 3; i++){
       moveStop = moveStop+digitalRead(12);
       delay(10);
     }
     
     Serial.println(moveStop);
-    moveStop = moveStop/2;// измерений движения = 100%  
+    moveStop = moveStop/3;// измерений движения = 100%  
   }
     
   // нечего не делаем... "ждем начало движения"
@@ -1314,7 +1290,7 @@ void loop() {
       delay(50);
     }
     Serial.println(moveStop);
-    moveStop = moveStop/9; // измерений движения > 90% 
+    moveStop = moveStop/7; // измерений движения > 70% 
     
     return;
   }
@@ -1323,59 +1299,37 @@ void loop() {
   if(frame_cnt == 1 && moveStop > 0){
     we_are_already_stopped = 0;
 
-    int read13 = digitalRead(13);
-    delay(20);
-    read13 = read13 + digitalRead(13);  // get 2 opinions to help poor soldering
-
     // установка параметров записи
-    if (read13 == 0 ) {
-      if ( c1_or_c2 == 1 ) {
-        c1_or_c2 = 2;
+    if (c1_or_c2 == 2 ) {
         framesize = c2_framesize;
         quality = c2_quality;
         avi_length = c2_avi_length;
-        
-        Serial.println("Pin 13 is grounded, switching to config 2");
 
         sensor_t * ss = esp_camera_sensor_get();
         ss->set_quality(ss, quality);
         ss->set_framesize(ss, (framesize_t) framesize);
 
-        ss->set_brightness(ss, 1);  //up the blightness just a bit
-        ss->set_saturation(ss, -2); //lower the saturation
-
         delay(800);
         for (int j = 0; j < 4; j++) {
           camera_fb_t * fb = esp_camera_fb_get();
-          //Serial.print("Pic, len="); Serial.println(fb->len);
           esp_camera_fb_return(fb);
           delay(50);
         }
-      }
-    } else {  // read13 = 1, so we want config 1
-      if ( c1_or_c2 == 2) {
-        c1_or_c2 = 1;
+    } else {
         framesize = c1_framesize;
         quality = c1_quality;
         avi_length = c1_avi_length;
-        
-        Serial.println("Pin 13 not grounded, switching to config 1");
 
         sensor_t * ss = esp_camera_sensor_get();
         ss->set_quality(ss, quality);
         ss->set_framesize(ss, (framesize_t)framesize);
 
-        ss->set_brightness(ss, 1);  //up the blightness just a bit
-        ss->set_saturation(ss, -2); //lower the saturation
-
         delay(800);
         for (int j = 0; j < 4; j++) {
           camera_fb_t * fb = esp_camera_fb_get();
-          //Serial.print("Pic, len="); Serial.println(fb->len);
           esp_camera_fb_return(fb);
           delay(50);
         }
-      }
     }
 
     avi_start_time = millis();
@@ -1452,5 +1406,4 @@ void loop() {
     return;
   }
   
-  //
 }
