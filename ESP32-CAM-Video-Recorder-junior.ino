@@ -10,6 +10,8 @@
  GPIO12 - сигнальный для датчика движения: "Высокий уровень" - движение, "Низкий уровень" - нет движения. Подробности см. в "Схеме проекта".
 
   Ссылки на источники:
+    - Первичная ветка, ставшая основой проекта:
+      https://github.com/jameszah/ESP32-CAM-Video-Recorder-junior.git
     - Постоянный репозиторий проекта:
       https://github.com/AEmelyanov757/ESP32-CAM-Video-Recorder-junior.git
     - Мануалы разработчиков чипа, платы, платформы:
@@ -31,8 +33,7 @@
       https://github.com/dproldan/Esp32AutoCamera - репозиторий кода Wi-Fi стрим камеры.
       https://github.com/tsaarni/esp32-micropython-webcam - репозиторий кода Wi-Fi стрим камеры на MicroPython (первый шаг в сторону OpenMV).
       https://github.com/openmv/openmv - репозиторий кода библиотеки машинного зрения OpenMV. Требуется произвести адаптацию быстрых математически функций. 
-      https://github.com/jameszah/ESP32-CAM-Video-Recorder.git
-      https://github.com/jameszah/ESP32-CAM-Video-Recorder-junior.git
+      https://github.com/jameszah/ESP32-CAM-Video-Recorder.git - таймламп видео рекордер.
 */
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -43,8 +44,8 @@ static const char vernum[] = "v11";
 static const char devname[] = "esp32cam";         // name of your camera for mDNS, Router, and filenames
 
 #define IncludeInternet 1               // if you want internet/wifi, change the to 1, and put in your wifi name/pass             
-const char* ssid = "SSID";
-const char* password = "PASS";
+const char* ssid = "MikroTik-BB08B9";
+const char* password = "25111978";
 
 // https://sites.google.com/a/usapiens.com/opnode/time-zones  -- find your timezone here
 #define TIMEZONE "UTC-12:00" // Временная зона Asia/Kamchatka
@@ -58,7 +59,8 @@ int c2_framesize = 5;                // CIF
 int c2_quality = 1;                  // quality on the 1..63 scale  - lower is better quality and bigger files - must be higher than the jpeg_quality in camera_config
 int c2_avi_length = 180;             // how long a movie in seconds -- 180 sec = 3 min
 
-int c1_or_c2 = 1;
+int c1_or_c2     = 1;
+int c1_or_c2_now = c1_or_c2;
 int framesize = c1_framesize;
 int quality = c1_quality;
 int avi_length = c1_avi_length;
@@ -114,6 +116,14 @@ camera_fb_t * fb_next = NULL;
 #include "soc/soc.h"
 #include "soc/cpu.h"
 #include "soc/rtc_cntl_reg.h"
+
+typedef struct{
+        size_t size; //number of values used for filtering
+        size_t index; //current value index
+        size_t count; //value count
+        int sum;
+        int * values; //array to be filled with values
+} ra_filter_t;
 
 static esp_err_t cam_err;
 
@@ -881,14 +891,6 @@ bool init_wifi()
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #include <HTTPClient.h>
 #include "camera_index.h"
-
-typedef struct {
-        size_t size; //number of values used for filtering
-        size_t index; //current value index
-        size_t count; //value count
-        int sum;
-        int * values; //array to be filled with values
-} ra_filter_t;
 
 static ra_filter_t ra_filter;
 httpd_handle_t camera_httpd = NULL;
