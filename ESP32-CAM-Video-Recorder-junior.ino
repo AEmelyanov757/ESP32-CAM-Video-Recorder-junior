@@ -1295,7 +1295,7 @@ void loop() {
     moveStop = moveStop/7; // измерений движения > 70% 
 
     // есть возможность изменить параметры работы матрицы
-    if((c1_or_c2 == 2 ) && (c1_or_c2_now != c1_or_c2){
+    if((c1_or_c2 == 2 ) && (c1_or_c2_now != c1_or_c2)){
         c1_or_c2_now = c1_or_c2;
         framesize = c2_framesize;
         quality = c2_quality;
@@ -1339,7 +1339,7 @@ void loop() {
     we_are_already_stopped = 0;
 
     // установка параметров записи
-    if((c1_or_c2 == 2 ) && (c1_or_c2_now != c1_or_c2){
+    if((c1_or_c2 == 2 ) && (c1_or_c2_now != c1_or_c2)){
         c1_or_c2_now = c1_or_c2;
         framesize = c2_framesize;
         quality = c2_quality;
