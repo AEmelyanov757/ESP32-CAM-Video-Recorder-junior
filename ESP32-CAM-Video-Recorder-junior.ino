@@ -1293,16 +1293,10 @@ void loop() {
     }
     Serial.println(moveStop);
     moveStop = moveStop/7; // измерений движения > 70% 
-    
-    return;
-  }
 
-  // начало записи
-  if(frame_cnt == 1 && moveStop > 0){
-    we_are_already_stopped = 0;
-
-    // установка параметров записи
-    if (c1_or_c2 == 2 ) {
+    // есть возможность изменить параметры работы матрицы
+    if((c1_or_c2 == 2 ) && (c1_or_c2_now != c1_or_c2){
+        c1_or_c2_now = c1_or_c2;
         framesize = c2_framesize;
         quality = c2_quality;
         avi_length = c2_avi_length;
@@ -1318,6 +1312,8 @@ void loop() {
           delay(50);
         }
     } else {
+      if((c1_or_c2 == 1 ) && (c1_or_c2_now != c1_or_c2)){
+        c1_or_c2_now = c1_or_c2;
         framesize = c1_framesize;
         quality = c1_quality;
         avi_length = c1_avi_length;
@@ -1332,6 +1328,51 @@ void loop() {
           esp_camera_fb_return(fb);
           delay(50);
         }
+      }
+    }
+    
+    return;
+  }
+
+  // начало записи
+  if(frame_cnt == 1 && moveStop > 0){
+    we_are_already_stopped = 0;
+
+    // установка параметров записи
+    if((c1_or_c2 == 2 ) && (c1_or_c2_now != c1_or_c2){
+        c1_or_c2_now = c1_or_c2;
+        framesize = c2_framesize;
+        quality = c2_quality;
+        avi_length = c2_avi_length;
+
+        sensor_t * ss = esp_camera_sensor_get();
+        ss->set_quality(ss, quality);
+        ss->set_framesize(ss, (framesize_t) framesize);
+
+        delay(800);
+        for (int j = 0; j < 4; j++) {
+          camera_fb_t * fb = esp_camera_fb_get();
+          esp_camera_fb_return(fb);
+          delay(50);
+        }
+    } else {
+      if((c1_or_c2 == 1 ) && (c1_or_c2_now != c1_or_c2)){
+        c1_or_c2_now = c1_or_c2;
+        framesize = c1_framesize;
+        quality = c1_quality;
+        avi_length = c1_avi_length;
+
+        sensor_t * ss = esp_camera_sensor_get();
+        ss->set_quality(ss, quality);
+        ss->set_framesize(ss, (framesize_t)framesize);
+
+        delay(800);
+        for (int j = 0; j < 4; j++) {
+          camera_fb_t * fb = esp_camera_fb_get();
+          esp_camera_fb_return(fb);
+          delay(50);
+        }
+      }
     }
 
     avi_start_time = millis();
