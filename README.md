@@ -16,27 +16,27 @@
 <img src="./programmer.jpg">
 
 ## Ссылки на источники:
-### - Первичная ветка, ставшая основой проекта:
+- Первичная ветка, ставшая основой проекта:<br>
   https://github.com/jameszah/ESP32-CAM-Video-Recorder-junior.git
-- Постоянный репозиторий проекта:
-  https://github.com/AEmelyanov757/ESP32-CAM-Video-Recorder-junior.git
-- Мануалы разработчиков чипа, платы, платформы:
-  https://docs.espressif.com/projects/esp-idf/en/latest/index.html - интерактивный справочник по ESP32 от компании Espressif.
-  https://wiki.ai-thinker.com/esp32-cam - интерактивный справочник по ESP32-CAM от компании AI-Thinker (китайский язык).
-  https://www.arduino.cc/reference/en/ - интерактивный справочник по Arduino от Arduino AG.
-- Cерия статей от Руи Сантос (Rui Santos) и компании студентов про основы программирования ESP32-CAM в среде Arduino:
-  https://randomnerdtutorials.com/esp8266-pinout-reference-gpios/ - про порты вводы/вывода.
-  https://randomnerdtutorials.com/esp32-touch-pins-arduino-ide/ - про особенность сенсорных кнопок ESP32.
-  https://makeradvisor.com/esp32-cam-ov2640-camera/ - вводная статья о ESP32-CAM.
-  https://randomnerdtutorials.com/esp32-cam-video-streaming-web-server-camera-home-assistant/ - организация Wi-Fi видое стриминга.
-  https://randomnerdtutorials.com/esp32-cam-video-streaming-face-recognition-arduino-ide/ - стриминг и распознование лиц.
-  https://randomnerdtutorials.com/esp32-cam-take-photo-save-microsd-card/ - сохранение фото на SD-карты, преодоление проблемы "4 Гбайт".
-- Полезные репозитории кода на GitHub по ESP32-CAM:
-  https://github.com/espressif/esp32-camera - репозиторий от Espressif.
-  https://github.com/donny681/ESP32_CAMERA_QR - репозиторий кода распознования QR-кода (можно организовать чтение имени и пароля Wi-Fi "на лету").
-  https://github.com/raphaelbs/esp32-cam-ai-thinker - репозиторий кода Wi-Fi стрим камеры.
-  https://github.com/ArduCAM/ArduCAM_ESP32S_UNO - бибилиотека Arduino Camera, адаптированный для ESP32. Есть пример кода записи видео (320x240) на SD-карту.
-  https://github.com/dproldan/Esp32AutoCamera - репозиторий кода Wi-Fi стрим камеры.
-  https://github.com/tsaarni/esp32-micropython-webcam - репозиторий кода Wi-Fi стрим камеры на MicroPython (первый шаг в сторону OpenMV).
-  https://github.com/openmv/openmv - репозиторий кода библиотеки машинного зрения OpenMV. Требуется произвести адаптацию быстрых математически функций. 
-  https://github.com/jameszah/ESP32-CAM-Video-Recorder.git - таймламп видео рекордер.
+- Постоянный репозиторий проекта:<br>
+  https://github.com/AEmelyanov757/ESP32-CAM-Video-Recorder-junior.git<br>
+- Мануалы разработчиков чипа, платы, платформы:<br>
+  https://docs.espressif.com/projects/esp-idf/en/latest/index.html - интерактивный справочник по ESP32 от компании Espressif.<br>
+  https://wiki.ai-thinker.com/esp32-cam - интерактивный справочник по ESP32-CAM от компании AI-Thinker (китайский язык).<br>
+  https://www.arduino.cc/reference/en/ - интерактивный справочник по Arduino от Arduino AG.<br>
+- Cерия статей от Руи Сантос (Rui Santos) и компании студентов про основы программирования ESP32-CAM в среде Arduino:<br>
+  https://randomnerdtutorials.com/esp8266-pinout-reference-gpios/ - про порты вводы/вывода.<br>
+  https://randomnerdtutorials.com/esp32-touch-pins-arduino-ide/ - про особенность сенсорных кнопок ESP32.<br>
+  https://makeradvisor.com/esp32-cam-ov2640-camera/ - вводная статья о ESP32-CAM.<br>
+  https://randomnerdtutorials.com/esp32-cam-video-streaming-web-server-camera-home-assistant/ - организация Wi-Fi видое стриминга.<br>
+  https://randomnerdtutorials.com/esp32-cam-video-streaming-face-recognition-arduino-ide/ - стриминг и распознование лиц.<br>
+  https://randomnerdtutorials.com/esp32-cam-take-photo-save-microsd-card/ - сохранение фото на SD-карты, преодоление проблемы "4 Гбайт".<br>
+- Полезные репозитории кода на GitHub по ESP32-CAM:<br>
+  https://github.com/espressif/esp32-camera - репозиторий от Espressif.<br>
+  https://github.com/donny681/ESP32_CAMERA_QR - репозиторий кода распознования QR-кода (можно организовать чтение имени и пароля Wi-Fi "на лету").<br>
+  https://github.com/raphaelbs/esp32-cam-ai-thinker - репозиторий кода Wi-Fi стрим камеры.<br>
+  https://github.com/ArduCAM/ArduCAM_ESP32S_UNO - бибилиотека Arduino Camera, адаптированный для ESP32. Есть пример кода записи видео (320x240) на SD-карту.<br>
+  https://github.com/dproldan/Esp32AutoCamera - репозиторий кода Wi-Fi стрим камеры.<br>
+  https://github.com/tsaarni/esp32-micropython-webcam - репозиторий кода Wi-Fi стрим камеры на MicroPython (первый шаг в сторону OpenMV).<br>
+  https://github.com/openmv/openmv - репозиторий кода библиотеки машинного зрения OpenMV. Требуется произвести адаптацию быстрых математически функций.<br> 
+  https://github.com/jameszah/ESP32-CAM-Video-Recorder.git - таймламп видео рекордер.<br>
