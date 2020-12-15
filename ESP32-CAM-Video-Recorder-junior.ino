@@ -44,8 +44,8 @@ static const char vernum[] = "v11";
 static const char devname[] = "esp32cam";         // name of your camera for mDNS, Router, and filenames
 
 #define IncludeInternet 1               // if you want internet/wifi, change the to 1, and put in your wifi name/pass             
-const char* ssid = "SSID";
-const char* password = "password";
+const char* ssid = "MikroTik-BB08B9";
+const char* password = "25111978";
 
 // https://sites.google.com/a/usapiens.com/opnode/time-zones  -- find your timezone here
 #define TIMEZONE "UTC-12:00" // Временная зона Asia/Kamchatka
@@ -178,7 +178,6 @@ static int i = 0;
 uint8_t temp = 0, temp_last = 0;
 unsigned long fileposition = 0;
 uint16_t frame_cnt = 0;
-uint16_t frame_mov = 0;
 uint16_t remnant = 0;
 uint32_t length = 0;
 uint32_t startms;
@@ -1187,6 +1186,49 @@ void startCameraServer() {
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Переменные для задач
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TaskHandle_t handleMoveDetector = NULL;
+
+SemaphoreHandle_t moveStop_mutex;
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Задача анализа наличия движения (работа с датчиком движения)
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+void moveDetector(void *pvParameters){
+  // Block for 1,5 s.
+  const TickType_t xDelay = 1500 / portTICK_PERIOD_MS;
+
+  // бесконечный цикл задачи
+  while (true){
+    // забираем семфор
+    xSemaphoreTake(moveStop_mutex, portMAX_DELAY);
+    moveStop = 0; // сброс полученных ранее значений
+
+    // усредненный способ обнаружить движение от Датчика
+    for(int i = 0; i < 3; i++){
+      moveStop = moveStop+digitalRead(12);
+      delay(20);
+    }
+
+    // наличие движения > 70%
+    Serial.println(moveStop);
+    moveStop = moveStop/2;
+    xSemaphoreGive(moveStop_mutex); //освободили... 
+
+    // сон задачи 1500 мС
+    vTaskDelay(xDelay); 
+  }
+  
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Задача обновления времени без "Интернета"
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+void localRTP(void *pvParameters){
+  //
+}
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Функция настройки модуля
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 void setup() {
@@ -1200,6 +1242,9 @@ void setup() {
   digitalWrite(4, LOW);             // turn off
 
   pinMode(12, INPUT_PULLDOWN);               // pull this down to stop recording
+  moveStop_mutex = xSemaphoreCreateMutex();  // создаем семафор
+  xTaskCreatePinnedToCore(moveDetector,"moveDetector",1024,NULL,2,&handleMoveDetector,0); // core 0
+  delay(20);
 
   Serial.println("                                    ");
   Serial.println("-------------------------------------");
@@ -1256,43 +1301,23 @@ void loop() {
     Serial.print("the loop, core ");  Serial.print(xPortGetCoreID());
     Serial.print(", priority = "); Serial.println(uxTaskPriorityGet(NULL));
     first = 0;
-    moveStop = 0;
     frame_cnt = 0;
-    frame_mov = 0;
   }
 
   // счетчики кадров: 
   frame_cnt = frame_cnt + 1; // длина всей записи
-  frame_mov = frame_mov + 1; // отсчитывание "0.5 минуты" записи
-  
-  // быстрый способ обнаружить движение/"окончание движения"
-  if(frame_mov > 720){
-    frame_mov = 0;
-    moveStop = 0;
 
-    for(int i = 0; i < 3; i++){
-      moveStop = moveStop+digitalRead(12);
-      delay(10);
-    }
-    
-    Serial.println(moveStop);
-    moveStop = moveStop/3;// измерений движения = 100%  
-  }
-    
+  // начало использования moveStop
+  xSemaphoreTake(moveStop_mutex, portMAX_DELAY);
+  
   // нечего не делаем... "ждем начало движения"
   if(frame_cnt == 1 && moveStop < 1){
+    // конец использования moveStop
+    xSemaphoreGive(moveStop_mutex); //освободили...
+
     frame_cnt = 0;
-    frame_mov = 0;
     if(we_are_already_stopped == 0) Serial.println("\n\nDisconnect Pin 12 from GND to start recording.\n\n");
     we_are_already_stopped = 1;
-
-    // точный способ обнаружить движение    
-    for(int i = 0; i < 10; i++){
-      moveStop = moveStop+digitalRead(12);
-      delay(50);
-    }
-    Serial.println(moveStop);
-    moveStop = moveStop/7; // измерений движения > 70% 
 
     // есть возможность изменить параметры работы матрицы
     if((c1_or_c2 == 2 ) && (c1_or_c2_now != c1_or_c2)){
@@ -1336,6 +1361,9 @@ void loop() {
 
   // начало записи
   if(frame_cnt == 1 && moveStop > 0){
+    // конец использования moveStop
+    xSemaphoreGive(moveStop_mutex); //освободили...
+
     we_are_already_stopped = 0;
 
     // установка параметров записи
@@ -1394,6 +1422,9 @@ void loop() {
   
   // оставнока записи
   if((frame_cnt > 1 && moveStop < 1) ||  millis() > (avi_start_time + avi_length * 1000)){
+    // конец использования moveStop
+    xSemaphoreGive(moveStop_mutex); //освободили...
+    
     Serial.println("End the Avi");
     fb_curr = fb_next;
     fb_next = NULL;
@@ -1412,13 +1443,14 @@ void loop() {
     Serial.printf("End the avi at %d.  It was %d frames, %d ms at %.1f fps...\n", millis(), frame_cnt, avi_end_time, avi_end_time - avi_start_time, fps);
 
     frame_cnt = 0;             // start recording again on the next loop
-    frame_mov = 0;
-    moveStop  = 0;
     return;
   }
   
   // продолжение записи
   if (frame_cnt > 1 && moveStop > 0) {
+    // конец использования moveStop
+    xSemaphoreGive(moveStop_mutex); //освободили...
+    
     //Serial.println("Another frame");
 
     fb_curr = fb_next;           // we will write a frame, and get the camera preparing a new one
