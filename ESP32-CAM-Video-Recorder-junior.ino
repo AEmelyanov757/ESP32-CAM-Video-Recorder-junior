@@ -8,7 +8,16 @@
 
  Пины: 
  GPIO12 - сигнальный для датчика движения: "Высокий уровень" - движение, "Низкий уровень" - нет движения. Подробности см. в "Схеме проекта".
-
+  
+  Библиотеки:
+   SD_MMC version 1.0 в директории: C:\Users\...\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\libraries\SD_MMC
+   FS version 1.0 в директории: C:\Users\...\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\libraries\FS
+   EEPROM version 1.0.3 в директории: C:\Users\...\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\libraries\EEPROM
+   WiFi version 1.0 в директории: C:\Users\...\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\libraries\WiFi
+   ESPmDNS version 1.0 в директории: C:\Users\...\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\libraries\ESPmDNS
+   HTTPClient version 1.2 в директории: C:\Users\...\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\libraries\HTTPClient
+   WiFiClientSecure version 1.0 в директории: C:\Users\...\AppData\Local\Arduino15\packages\esp32\hardware\esp32\1.0.4\libraries\WiFiClientSecure  
+  
   Ссылки на источники:
     - Первичная ветка, ставшая основой проекта:
       https://github.com/jameszah/ESP32-CAM-Video-Recorder-junior.git
@@ -39,7 +48,6 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // user edits here:
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 static const char vernum[] = "v11";
 static const char devname[] = "esp32cam";         // name of your camera for mDNS, Router, and filenames
 
@@ -244,17 +252,25 @@ const int avi_header[AVIOFFSET] PROGMEM = {
 };
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Переменные для задач
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TaskHandle_t handleTimeDate     = NULL;
+TaskHandle_t handleMoveDetector = NULL;
+
+SemaphoreHandle_t moveStop_mutex;
+SemaphoreHandle_t date_mutex;
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Time
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #include "time.h"
-time_t now;
+time_t esp32TimeLocal;
 struct tm timeinfo;
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Writes an uint32_t in Big Endian at current file position
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-static void inline print_quartet(unsigned long i, FILE * fd)
-{
+static void inline print_quartet(unsigned long i, FILE * fd){
   uint8_t y[4];
   y[0] = i % 0x100;
   y[1] = (i >> 8) % 0x100;
@@ -266,8 +282,7 @@ static void inline print_quartet(unsigned long i, FILE * fd)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Writes 2 uint32_t in Big Endian at current file position
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-static void inline print_2quartet(unsigned long i, unsigned long j, FILE * fd)
-{
+static void inline print_2quartet(unsigned long i, unsigned long j, FILE * fd){
   uint8_t y[8];
   y[0] = i % 0x100;
   y[1] = (i >> 8) % 0x100;
@@ -390,8 +405,10 @@ static esp_err_t config_camera() {
   }
 }
 
-static esp_err_t init_sdcard()
-{
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+static esp_err_t init_sdcard(){
   //pinMode(13, PULLUP);
 
   esp_err_t ret = ESP_FAIL;
@@ -537,8 +554,9 @@ void do_eprom_write() {
 static esp_err_t start_avi() {
   Serial.println("Starting an avi ");
 
-  time(&now);
-  localtime_r(&now, &timeinfo);
+  xSemaphoreTake(date_mutex, portMAX_DELAY);
+  localtime_r(&esp32TimeLocal, &timeinfo);
+  xSemaphoreGive(date_mutex);
 
   strftime(strftime_buf, sizeof(strftime_buf), "%Y_%m_%d__%H-%M-%S", &timeinfo);
   sprintf(fname, "/sdcard/%s.avi", strftime_buf);
@@ -834,10 +852,9 @@ static esp_err_t end_avi() {
 char localip[20];
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//
+// функция инициализации Wi-Fi
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-bool init_wifi()
-{
+bool init_wifi(){
   int connAttempts = 0;
 
   uint32_t brown_reg_temp = READ_PERI_REG(RTC_CNTL_BROWN_OUT_REG);
@@ -861,24 +878,15 @@ bool init_wifi()
   } else {
     Serial.printf("mDNS responder started '%s'\n", devname);
   }
+  
+  xTaskCreatePinnedToCore(localRTP,"localRTP",1024,NULL,2,&handleTimeDate,0); // core 0
 
-  configTime(0, 0, "pool.ntp.org");
-
-  setenv("TZ", TIMEZONE, 1);  // mountain time zone from #define at top
-  tzset();
-
-  time(&now);
-  localtime_r(&now, &timeinfo);
-
-  while (now < 10) {        // try for 5 seconds to get the time, then give up - 10 seconds after boot
-    delay(1000);
-    Serial.print("o");
-    time(&now);
-    localtime_r(&now, &timeinfo);
-  }
-
-  Serial.print("Local time: "); Serial.print(ctime(&now));
+  Serial.print("Local time: "); 
+  xSemaphoreTake(date_mutex, portMAX_DELAY);
+  Serial.print(ctime(&esp32TimeLocal));
+  xSemaphoreGive(date_mutex);
   sprintf(localip, "%s", WiFi.localIP().toString().c_str());
+
   Serial.print("IP: "); Serial.println(localip); Serial.println(" ");
 
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, brown_reg_temp);
@@ -1186,13 +1194,6 @@ void startCameraServer() {
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Переменные для задач
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-TaskHandle_t handleMoveDetector = NULL;
-
-SemaphoreHandle_t moveStop_mutex;
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Задача анализа наличия движения (работа с датчиком движения)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 void moveDetector(void *pvParameters){
@@ -1208,7 +1209,7 @@ void moveDetector(void *pvParameters){
     // усредненный способ обнаружить движение от Датчика
     for(int i = 0; i < 3; i++){
       moveStop = moveStop+digitalRead(12);
-      delay(20);
+      delay(100);
     }
 
     // наличие движения > 70%
@@ -1226,7 +1227,40 @@ void moveDetector(void *pvParameters){
 // Задача обновления времени без "Интернета"
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 void localRTP(void *pvParameters){
-  //
+  const TickType_t xDelay = 1000 / portTICK_PERIOD_MS;  // Block for 1,0 s.
+  time_t now;
+
+  // настройка часов
+  xSemaphoreTake(date_mutex, portMAX_DELAY);
+  configTime(0, 0, "pool.ntp.org");
+  setenv("TZ", TIMEZONE, 1);  // mountain time zone from #define at top
+  tzset();
+
+  // первичное получение даты и времени...
+  time(&now);
+  localtime_r(&now, &timeinfo);
+
+  // 10 попыток получить верное время...
+  for (size_t i = 0; ((i < 10)&&(now < 10)); i++){
+    vTaskDelay(xDelay);
+    time(&now);
+    localtime_r(&now, &timeinfo);
+  }
+  
+  esp32TimeLocal = now;
+  xSemaphoreGive(date_mutex);
+  vTaskDelay(xDelay);    
+  
+  // вторичное обслуживание времени/даты: увелечение счетчика esp32TimeLocal каждую секунду
+  while (true){
+    xSemaphoreTake(date_mutex, portMAX_DELAY);
+
+    esp32TimeLocal++;
+    xSemaphoreGive(date_mutex);
+
+    vTaskDelay(xDelay);    
+  }
+  
 }
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Функция настройки модуля
@@ -1235,15 +1269,15 @@ void setup() {
   Serial.begin(115200);
   Serial.println("\n\n---");
 
-  pinMode(33, OUTPUT);             // little red led on back of chip
-  digitalWrite(33, LOW);           // turn on the red LED on the back of chip
+  pinMode(33, OUTPUT);              // little red led on back of chip
+  digitalWrite(33, LOW);            // turn on the red LED on the back of chip
 
   pinMode(4, OUTPUT);               // Blinding Disk-Avtive Light
   digitalWrite(4, LOW);             // turn off
 
-  pinMode(12, INPUT_PULLDOWN);               // pull this down to stop recording
+  pinMode(12, INPUT);               // pull this down to stop recording
   moveStop_mutex = xSemaphoreCreateMutex();  // создаем семафор
-  xTaskCreatePinnedToCore(moveDetector,"moveDetector",1024,NULL,2,&handleMoveDetector,0); // core 0
+  xTaskCreatePinnedToCore(moveDetector,"moveDetector",1024,NULL,2,&handleMoveDetector,0); // core 0  
   delay(20);
 
   Serial.println("                                    ");
