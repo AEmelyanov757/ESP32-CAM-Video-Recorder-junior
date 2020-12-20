@@ -52,8 +52,8 @@ static const char vernum[] = "v11";
 static const char devname[] = "esp32cam";         // name of your camera for mDNS, Router, and filenames
 
 #define IncludeInternet 1               // if you want internet/wifi, change the to 1, and put in your wifi name/pass             
-const char* ssid = "MikroTik-BB08B9";
-const char* password = "25111978";
+const char* ssid = "ssid";
+const char* password = "password";
 
 // https://sites.google.com/a/usapiens.com/opnode/time-zones  -- find your timezone here
 #define TIMEZONE "UTC-12:00" // Временная зона Asia/Kamchatka
