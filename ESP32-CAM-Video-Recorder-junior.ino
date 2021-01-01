@@ -879,6 +879,9 @@ bool init_wifi(){
     Serial.printf("mDNS responder started '%s'\n", devname);
   }
   
+  date_mutex =  xSemaphoreCreateMutex();  // создаем семафор для таймера даты
+  delay(200);
+
   xTaskCreatePinnedToCore(localRTP,"localRTP",1024,NULL,2,&handleTimeDate,0); // core 0
 
   Serial.print("Local time: "); 
@@ -1276,7 +1279,7 @@ void setup() {
   digitalWrite(4, LOW);             // turn off
 
   pinMode(12, INPUT);               // pull this down to stop recording
-  moveStop_mutex = xSemaphoreCreateMutex();  // создаем семафор
+  moveStop_mutex = xSemaphoreCreateMutex();  // создаем семафор для детектора движения
   xTaskCreatePinnedToCore(moveDetector,"moveDetector",1024,NULL,2,&handleMoveDetector,0); // core 0  
   delay(20);
 
